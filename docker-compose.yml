@@ -1,0 +1,79 @@
+---
+version: '2'
+services:
+  zookeeper-0:
+    image: confluentinc/cp-zookeeper:7.3.4
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+
+  zookeeper-1:
+    image: confluentinc/cp-zookeeper:7.3.4
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22182:2181
+  
+  kafka-0:
+    image: confluentinc/cp-kafka:7.3.4
+    depends_on:
+      - zookeeper-0
+      - zookeeper-1
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 0
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-0:2181,zookeeper-1:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-0:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+  
+  kafka-1:
+    image: confluentinc/cp-kafka:7.3.4
+    depends_on:
+      - zookeeper-0
+      - zookeeper-1
+    ports:
+      - 29093:29093
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-0:2181,zookeeper-1:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,PLAINTEXT_HOST://localhost:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+    
+  kafka-2:
+    image: confluentinc/cp-kafka:7.3.4
+    depends_on:
+      - zookeeper-0
+      - zookeeper-1
+    ports:
+      - 29094:29094
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-0:2181,zookeeper-1:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,PLAINTEXT_HOST://localhost:29094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      
+  kafka-schemareg:
+    image: confluentinc/cp-schema-registry:7.3.4
+    hostname: kafka-schemareg
+    depends_on:
+      - zookeeper-0
+      - zookeeper-1
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    ports:
+      - 28081:8081
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-2:9092,PLAINTEXT://kafka-1:9092,PLAINTEXT://kafka-0:9092
+      SCHEMA_REGISTRY_HOST_NAME: kafka-schemareg
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
