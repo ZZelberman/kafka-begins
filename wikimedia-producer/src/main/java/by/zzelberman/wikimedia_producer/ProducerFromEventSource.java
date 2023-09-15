@@ -34,7 +34,7 @@ public class ProducerFromEventSource {
 		props.setProperty(LINGER_MS_CONFIG, "20");
 		props.setProperty(BATCH_SIZE_CONFIG, Integer.toString(1024 * 32));
 		
-		KafkaProducer<String, String> producer = new KafkaProducer<String, String>(props);
+		KafkaProducer<String, String> producer = new KafkaProducer<>(props);
 		
 		EventSource.Builder esb = null;
 		try {
@@ -45,7 +45,7 @@ public class ProducerFromEventSource {
 		}
 		
 		EventSource src = esb.build();
-		
+
 		new Thread(() -> {
 			try {
 				TimeUnit.SECONDS.sleep(3);
@@ -60,7 +60,7 @@ public class ProducerFromEventSource {
 		try {
 			src.messages().forEach(m -> {
 				LOG.info("[" + ++eventCount + "] - " + m.getData());
-				producer.send(new ProducerRecord<String, String>(TOPIC, m.getData()));
+				producer.send(new ProducerRecord<>(TOPIC, m.getData()));
 			});
 			LOG.info("Event Source closed");
 		} finally {
