@@ -3,6 +3,7 @@ package by.zzelberman.wikimedia_producer;
 import java.net.MalformedURLException;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -18,7 +19,7 @@ public class ProducerFromEventSource {
 	private static final String EVENT_SOURCE_ENDPOINT = "https://stream.wikimedia.org/v2/stream/recentchange";
 	private static final String TOPIC = "wikimedia-change-events"; 
 	private static final Logger LOG = LoggerFactory.getLogger(ProducerFromEventSource.class);
-	private static volatile long eventCount = 0;
+	private static AtomicInteger eventCount = new AtomicInteger(0);
 	
 	public static void main(String[] args) {
 		Properties props = new Properties();
@@ -48,18 +49,17 @@ public class ProducerFromEventSource {
 
 		new Thread(() -> {
 			try {
-				TimeUnit.SECONDS.sleep(3);
+				TimeUnit.SECONDS.sleep(4);
 				LOG.info("Calling EventSource to close itself");
 				src.close();
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				LOG.error("Error while consuming SSE:", e);
 			}
 		}).start();
 		
 		try {
 			src.messages().forEach(m -> {
-				LOG.info("[" + ++eventCount + "] - " + m.getData());
+				LOG.info("[" + eventCount.incrementAndGet() + "] - " + m.getData());
 				producer.send(new ProducerRecord<>(TOPIC, m.getData()));
 			});
 			LOG.info("Event Source closed");
@@ -68,7 +68,5 @@ public class ProducerFromEventSource {
 			producer.close();
 			LOG.info("Producer is closed after EventSource is stopped");
 		}
-		
-		
 	}
 }
