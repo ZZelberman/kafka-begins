@@ -5,6 +5,7 @@ import org.apache.http.HttpHost;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
@@ -63,6 +64,20 @@ public class OpensearchKafkaConsumer {
         RestHighLevelClient osClient = getNonSecureOpensearchClient("http://localhost:9200");
         KafkaConsumer<String, String> consumer = getConsumer(TOPIC);
 
+        final Thread shutdownThreadReference = Thread.currentThread();
+        Runnable hookReference = () -> {
+            Thread.currentThread().setName("Shutdown Hook Thread");
+            LOG.info("Processing shutdown hook to gracefully down Kafka consumer");
+            try {
+                consumer.wakeup();
+                shutdownThreadReference.join();
+                LOG.info("Shutdown hook is completed");
+            } catch (InterruptedException e) {
+                LOG.error("Waiting for shutdown thread finish has been interrupted", e);
+            }
+        };
+        Runtime.getRuntime().addShutdownHook(new Thread(hookReference));
+
         try(osClient) {
             GetIndexRequest checkIndexReq = new GetIndexRequest(OPENSEARCH_INDEX);
             if (!osClient.indices().exists(checkIndexReq, RequestOptions.DEFAULT)) {
@@ -107,6 +122,12 @@ public class OpensearchKafkaConsumer {
 
         } catch (IOException | InterruptedException e ) {
             throw new RuntimeException(e);
+        } catch (WakeupException e) {
+            LOG.info("Consumer has been woken up by a shutdown hook");
+        } finally {
+            LOG.info("Finally Closing the consumer");
+            consumer.close();
+            LOG.info("Consumer has been closed");
         }
     }
 }
